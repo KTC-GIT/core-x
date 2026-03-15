@@ -301,22 +301,42 @@ Core-X는 **Arize Phoenix**를 활용해 아래 항목을 추적합니다.
 
 ```bash
 core-x/
-├─ app/
-│  ├─ api/
-│  ├─ services/
-│  ├─ retrieval/
-│  ├─ prompts/
-│  ├─ observability/
-│  └─ main.py
-├─ scripts/
-├─ tests/
-├─ docs/
-├─ deploy/
-├─ requirements.txt
-└─ README.md
+├── .venv/
+├── services/
+│   └── reranker/
+│       └── reranker_server.py
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── __init__.py
+│   │   ├── core/
+│   │   │   ├── __init__.py
+│   │   │   ├── database.py
+│   │   │   ├── db.py
+│   │   │   └── tools.py
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   ├── models.py
+│   │   │   └── redis_model.py
+│   │   ├── service/
+│   │   │   ├── __init__.py
+│   │   │   ├── chat_service.py
+│   │   │   ├── chat_to_es_service.py
+│   │   │   ├── llm.py
+│   │   │   ├── rag_service.py
+│   │   │   ├── redis_service.py
+│   │   │   └── report_service.py
+│   │   ├── __init__.py
+│   │   └── main.py
+│   └── __init__.py
+├── .dockerignore
+├── .env
+├── .gitignore
+├── .gitlab-ci.yml
+├── Dockerfile
+├── README.md
+└── requirements.txt
 ```
-
-> 실제 구조에 맞게 수정해서 사용하세요.
 
 ---
 
