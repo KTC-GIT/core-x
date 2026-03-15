@@ -1,0 +1,6 @@
+.venv/
+.git/
+frontend/
+services/
+elasticsearch/
+.env

@@ -1,0 +1,73 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  # 컨테이너 이미지는 GitLab Container Registry 기준으로 태깅
+  IMAGE_NAME: "${CI_REGISTRY_IMAGE}"
+  # 배포 추적이 쉽도록 커밋 SHA 기반 태그 사용
+  IMAGE_TAG: "${CI_COMMIT_SHORT_SHA}"
+
+build-image:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  tags:
+    - kubernetes
+  script:
+    # Kaniko가 사용할 Docker 인증 정보 생성
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+
+    # 기본적으로는 커밋 SHA 태그로 이미지를 푸시
+    # 태그 릴리스면 Git 태그도 함께 푸시
+    # main 브랜치면 latest 태그도 함께 푸시
+    - |
+      DESTINATIONS="--destination ${IMAGE_NAME}:${IMAGE_TAG}"
+
+      if [[ -n "$CI_COMMIT_TAG" ]]; then
+        DESTINATIONS="${DESTINATIONS} --destination ${IMAGE_NAME}:${CI_COMMIT_TAG}"
+      elif [[ "$CI_COMMIT_BRANCH" == "main" ]]; then
+        DESTINATIONS="${DESTINATIONS} --destination ${IMAGE_NAME}:latest"
+      fi
+
+    - echo "Building and pushing to $DESTINATIONS"
+    - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile "${CI_PROJECT_DIR}/Dockerfile" ${DESTINATIONS} --cache=true --cache-repo="${CI_REGISTRY_IMAGE}/cache"
+  rules:
+    # main 브랜치와 태그 릴리스에 대해서만 이미지 빌드 수행
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG'
+
+update-manifest:
+  stage: deploy
+  image: bitnami/git:latest
+  tags:
+    - kubernetes
+  needs: ["build-image"]
+  script:
+    # CI에서 커밋할 사용자 정보 설정
+    - git config --global user.email "ci-bot@example.com"
+    - git config --global user.name "GitLab CI Bot"
+
+    # 배포 매니페스트를 관리하는 별도 저장소 클론
+    - git clone https://oauth2:${MANIFEST_REPO_TOKEN}@git.example.com/group/app-manifest.git manifest-repo
+    - cd manifest-repo
+
+    # 배포 대상 이미지 태그를 최신 빌드 SHA로 교체
+    - sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${IMAGE_TAG}|" deploy.yaml
+    - git diff
+
+    # 변경이 있을 때만 커밋 및 푸시
+    # [skip ci]를 넣어 불필요한 파이프라인 재실행 방지
+    - |
+      if git diff --quiet; then
+        echo "No changes to commit."
+      else
+        git add deploy.yaml
+        git commit -m "Update deployment image to ${IMAGE_TAG} [skip ci]"
+        git push origin main
+      fi
+  rules:
+    # 배포 매니페스트 갱신은 main 브랜치에서만 수행
+    - if: '$CI_COMMIT_BRANCH == "main"'

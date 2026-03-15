@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.env
+.idea/
+.DS_Store
+searxng-k8s.yaml
+redis-core.yaml
+firecrawl/
+langfuse/
+phoenix/
